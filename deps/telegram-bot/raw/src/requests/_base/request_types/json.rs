@@ -1,5 +1,6 @@
 use serde::Serialize;
 use serde_json;
+use std::str;
 
 use crate::requests::*;
 
@@ -14,6 +15,8 @@ impl<Request: Serialize> RequestType for JsonRequestType<Request> {
 
     fn serialize(url: Self::Options, request: &Self::Request) -> Result<HttpRequest, Error> {
         let body = serde_json::to_vec(&request)?;
+        println!("request: {:?}", str::from_utf8(&body).unwrap());
+
         Ok(HttpRequest {
             url: url,
             method: Method::Post,

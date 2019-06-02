@@ -6,6 +6,8 @@ use std::ops::Not;
 pub enum InlineQueryResult {
     #[serde(rename = "article")]
     InlineQueryResultArticle(InlineQueryResultArticle),
+    #[serde(rename = "voice")]
+    InlineQueryResultVoice(InlineQueryResultVoice),
     Unknown, // TODO: Rest of the fields
 }
 
@@ -16,6 +18,16 @@ pub struct InlineQueryResultArticle {
     input_message_content: InputMessageContent,
     description: Option<String>,
     reply_markup: Option<ReplyMarkup>,
+    // TODO: Rest of the fields
+}
+
+#[derive(Serialize, Debug)]
+pub struct InlineQueryResultVoice {
+    id: String,
+    title: String,
+    voice_url: String,
+    caption: Option<String>,
+    // reply_markup: Option<ReplyMarkup>,
     // TODO: Rest of the fields
 }
 
@@ -43,6 +55,32 @@ impl InlineQueryResultArticle {
         self.reply_markup = Some(markup.into());
         self
     }
+}
+
+impl InlineQueryResultVoice {
+    pub fn new<T: Into<String>, U: Into<String>, V: Into<String>>(
+        id: T,
+        title: U,
+        voice_url: V,
+    ) -> InlineQueryResultVoice {
+        InlineQueryResultVoice {
+            id: id.into(),
+            title: title.into(),
+            voice_url: voice_url.into(),
+            caption: Some(String::from("KEK")),
+            // reply_markup: None
+        }
+    }
+
+    pub fn caption<T: Into<String>>(&mut self, caption: T) -> &mut Self {
+        self.caption = Some(caption.into());
+        self
+    }
+
+    // pub fn reply_markup<T: Into<ReplyMarkup>>(&mut self, markup: T) -> &mut Self {
+    //     self.reply_markup = Some(markup.into());
+    //     self
+    // }
 }
 
 impl From<InlineQueryResultArticle> for InlineQueryResult {
