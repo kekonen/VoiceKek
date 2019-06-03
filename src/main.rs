@@ -1,6 +1,20 @@
 extern crate futures;
 extern crate telegram_bot;
 extern crate tokio_core;
+#[macro_use]
+extern crate diesel;
+
+
+use self::models::{Voice};
+use self::lib::*;
+use diesel::prelude::*;
+
+mod lib;
+use lib::{establish_connection};
+
+pub mod models;
+pub mod schema;
+use self::schema::voices::dsl::*;
 
 use std::env;
 
@@ -9,6 +23,21 @@ use tokio_core::reactor::Core;
 use telegram_bot::*;
 
 fn main() {
+
+
+    let connection = establish_connection();
+    let results = voices
+        .load::<Voice>(&connection)
+        .expect("Error loading posts");
+        // .filter(voices::published.eq(true))
+
+    println!("Displaying {} posts", results.len());
+    for voice in results {
+        println!("{:?}", voice);
+        println!("-----------\n");
+        // println!("{}", voice.body);
+    }
+
     let mut core = Core::new().unwrap();
 
     println!("HELLO");
@@ -28,16 +57,35 @@ fn main() {
         match update.kind {
             UpdateKind::Message(message) => {
                 println!("Incoming message");
-                if let MessageKind::Text {ref data, ..} = message.kind {
-                    println!("5");
-                    // Print received text message to stdout.
-                    println!("<{}>: {}", &message.from.first_name, data);
+                match message.kind {
+                    MessageKind::Text {ref data, ..} => {
+                        // Print received text message to stdout.
+                        println!("Got Text <{}>: {}\nOwner: {:?}", &message.from.first_name, data, &message.from);
 
-                    // Answer message with "Hi".
-                    api.spawn(message.text_reply(
-                        format!("Hi, {}! You just wrote '{}'", &message.from.first_name, data)
-                    ));
+                        // Answer message with "Hi".
+                        api.spawn(message.text_reply(
+                            format!("Hi, {}! You just wrote '{}'", &message.from.first_name, data)
+                        ));
+                    },
+                    MessageKind::Audio {ref data, ..} => {
+                        println!("Got Audio <{}>: {:?}", &message.from.first_name, data);
+
+                        api.spawn(message.text_reply(
+                            format!("Hi, {}! You just sent audio", &message.from.first_name)
+                        ));
+                    },
+                    MessageKind::Voice {ref data, ..} => {
+                        println!("Got Voice <{}>: {:?}", &message.from.first_name, data);
+
+                        api.spawn(message.text_reply(
+                            format!("Hi, {}! You just sent voice", &message.from.first_name)
+                        ));
+                    },
+                    _ => println!("Other kind"),
                 }
+                // if let MessageKind::Text {ref data, ..} = message.kind {
+                    
+                // }
             },
             UpdateKind::InlineQuery(inline_query) => {
                 // InlineQuery { id: InlineQueryId("936883958196477061"),
@@ -46,7 +94,7 @@ fn main() {
                 // type TRequests = telegram_bot::types::requests
 
                 println!("id:{:?}", inline_query);
-                let kek = telegram_bot::types::InlineQueryResultVoice::new("kek", "Title", "https://file-examples.com/wp-content/uploads/2017/11/file_example_OOG_1MG.ogg");
+                let kek = telegram_bot::types::InlineQueryResultVoice::new("kek", "Title", "http://kekonen.club/static/hitman.ogg");
 
                 let mut results = Vec::new();
                 results.push(

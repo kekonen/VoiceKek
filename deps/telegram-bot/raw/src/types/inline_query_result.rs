@@ -26,7 +26,7 @@ pub struct InlineQueryResultVoice {
     id: String,
     title: String,
     voice_url: String,
-    caption: Option<String>,
+    // caption: Option<String>,
     // reply_markup: Option<ReplyMarkup>,
     // TODO: Rest of the fields
 }
@@ -67,15 +67,13 @@ impl InlineQueryResultVoice {
             id: id.into(),
             title: title.into(),
             voice_url: voice_url.into(),
-            caption: Some(String::from("KEK")),
-            // reply_markup: None
         }
     }
 
-    pub fn caption<T: Into<String>>(&mut self, caption: T) -> &mut Self {
-        self.caption = Some(caption.into());
-        self
-    }
+    // pub fn caption<T: Into<String>>(&mut self, caption: T) -> &mut Self {
+    //     self.caption = Some(caption.into());
+    //     self
+    // }
 
     // pub fn reply_markup<T: Into<ReplyMarkup>>(&mut self, markup: T) -> &mut Self {
     //     self.reply_markup = Some(markup.into());
