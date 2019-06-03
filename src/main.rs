@@ -23,35 +23,33 @@ use tokio_core::reactor::Core;
 use telegram_bot::*;
 
 fn main() {
-
-
     let connection = establish_connection();
-    let results = voices
-        .load::<Voice>(&connection)
-        .expect("Error loading posts");
-        // .filter(voices::published.eq(true))
+    // let results = voices
+    //     .load::<Voice>(&connection)
+    //     .expect("Error loading posts");
+    //     // .filter(voices::published.eq(true))
 
-    println!("Displaying {} posts", results.len());
-    for voice in results {
-        println!("{:?}", voice);
-        println!("-----------\n");
-        // println!("{}", voice.body);
-    }
+    // println!("Displaying {} posts", results.len());
+    // for voice in results {
+    //     println!("{:?}", voice);
+    //     println!("-----------\n");
+    //     // println!("{}", voice.body);
+    // }
 
     let mut core = Core::new().unwrap();
 
     println!("HELLO");
 
     let token = env::var("TELEGRAM_BOT_TOKEN").unwrap();
-    println!("1");
+    println!("1. Got token");
 
     let api = Api::configure(token).build(core.handle()).unwrap();
-    println!("2");
+    println!("2. Configured Telegram Api");
 
 
     // Fetch new updates via long poll method
     let future = api.stream().for_each(|update| {
-        println!("3");
+        println!("3. Started polling");
         // If the received update contains a new message...
 
         match update.kind {
@@ -76,7 +74,7 @@ fn main() {
                     },
                     MessageKind::Voice {ref data, ..} => {
                         println!("Got Voice <{}>: {:?}", &message.from.first_name, data);
-
+                        // { file_id: "AwADBAADIQUAAu6jqFMgkXH89n2udwI", duration: 2, mime_type: Some("audio/ogg"), file_size: Some(3986) }
                         api.spawn(message.text_reply(
                             format!("Hi, {}! You just sent voice", &message.from.first_name)
                         ));
