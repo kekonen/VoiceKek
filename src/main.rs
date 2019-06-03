@@ -5,22 +5,27 @@ extern crate tokio_core;
 extern crate diesel;
 
 
-use self::models::{Voice};
-use self::lib::*;
+
 use diesel::prelude::*;
 
-mod lib;
-use lib::{establish_connection};
+
 
 pub mod models;
 pub mod schema;
-use self::schema::voices::dsl::*;
+
+use self::models::{Voice, NewVoice, Task};
+// use self::schema::voices::dsl::*;
+
+mod lib;
+use lib::{establish_connection};
+use self::lib::*;
 
 use std::env;
 
 use futures::Stream;
 use tokio_core::reactor::Core;
 use telegram_bot::*;
+
 
 fn main() {
     let connection = establish_connection();
@@ -75,6 +80,10 @@ fn main() {
                     MessageKind::Voice {ref data, ..} => {
                         println!("Got Voice <{}>: {:?}", &message.from.first_name, data);
                         // { file_id: "AwADBAADIQUAAu6jqFMgkXH89n2udwI", duration: 2, mime_type: Some("audio/ogg"), file_size: Some(3986) }
+                        match data.file_size {
+                            Some(value) => create_voice(&connection, &data.file_id, &(i64::from(message.from.id) as i32), &(data.duration as i32), &(value as i32)),
+                            _ => create_voice(&connection, &data.file_id, &123, &(data.duration as i32), &0)
+                        };
                         api.spawn(message.text_reply(
                             format!("Hi, {}! You just sent voice", &message.from.first_name)
                         ));
@@ -117,4 +126,25 @@ fn main() {
     });
 
     core.run(future).unwrap();
+}
+
+
+
+
+
+
+fn create_voice<'a>(conn: &PgConnection, file_id: &'a str, owner_id: &'a i32, duration: &'a i32, size: &'a i32) -> Voice {
+    use schema::voices;
+
+    let new_post = NewVoice {
+        file_id: file_id,
+        owner_id: owner_id,
+        duration: duration,
+        size: size,
+    };
+
+    diesel::insert_into(voices::table)
+        .values(&new_post)
+        .get_result(conn)
+        .expect("Error saving new post")
 }

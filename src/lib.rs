@@ -1,8 +1,16 @@
-
 use diesel::prelude::*;
+
+
+
 use diesel::pg::PgConnection;
 use dotenv::dotenv;
 use std::env;
+
+
+// pub mod schema;
+// mod models;
+
+
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -12,3 +20,6 @@ pub fn establish_connection() -> PgConnection {
     PgConnection::establish(&database_url)
         .expect(&format!("Error connecting to {}", database_url))
 }
+
+
+// use self::models::{Voice, NewVoice};
