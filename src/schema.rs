@@ -10,6 +10,15 @@ table! {
 }
 
 table! {
+    voice_permissions (id) {
+        id -> Int4,
+        owner_chat_id -> Int4,
+        voice_file_id -> Varchar,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
     voices (id) {
         id -> Int4,
         file_id -> Varchar,
@@ -23,5 +32,6 @@ table! {
 
 allow_tables_to_appear_in_same_query!(
     tasks,
+    voice_permissions,
     voices,
 );

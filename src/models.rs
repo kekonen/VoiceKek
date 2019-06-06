@@ -1,3 +1,5 @@
+use chrono::NaiveDateTime;
+
 #[derive(Queryable, Debug)]
 pub struct Voice {
     pub id: i32,
@@ -19,6 +21,14 @@ pub struct Task {
     pub fullfilled: bool,
 }
 
+#[derive(Queryable, Debug)]
+pub struct VoicePermission {
+    pub id: i32,
+    pub owner_chat_id: i32,
+    pub voice_file_id: String,
+    pub created_at: NaiveDateTime,
+}
+
 use super::schema::voices;
 
 #[derive(Insertable)]
@@ -28,4 +38,24 @@ pub struct NewVoice<'a> {
     pub owner_id: &'a i32,
     pub duration: &'a i32,
     pub size: &'a i32,
+}
+
+use super::schema::tasks;
+
+#[derive(Insertable)]
+#[table_name="tasks"]
+pub struct NewTask<'a> {
+    pub chat_id: &'a i32,
+    pub message_type: &'a i32,
+    pub task: &'a str,
+    pub content: &'a str,
+}
+
+use super::schema::voice_permissions;
+
+#[derive(Insertable)]
+#[table_name="voice_permissions"]
+pub struct NewVoicePermission<'a> {
+    pub owner_chat_id: &'a i32,
+    pub voice_file_id: &'a str,
 }

@@ -1,3 +1,4 @@
+extern crate chrono;
 extern crate futures;
 extern crate telegram_bot;
 extern crate tokio_core;
@@ -5,6 +6,7 @@ extern crate tokio_core;
 extern crate diesel;
 
 
+use chrono::NaiveDateTime;
 
 use diesel::prelude::*;
 
@@ -13,8 +15,9 @@ use diesel::prelude::*;
 pub mod models;
 pub mod schema;
 
-use self::models::{Voice, NewVoice, Task};
+use self::models::{Voice, NewVoice, Task, NewTask, VoicePermission, NewVoicePermission};
 // use self::schema::voices::dsl::*;
+// use self::schema::tasks::dsl::*;
 
 mod lib;
 use lib::{establish_connection};
@@ -64,6 +67,65 @@ fn main() {
                     MessageKind::Text {ref data, ..} => {
                         // Print received text message to stdout.
                         println!("Got Text <{}>: {}\nOwner: {:?}", &message.from.first_name, data, &message.from);
+                        // use schema::tasks;
+                        use self::schema::tasks::dsl::*;
+                        use self::schema::voices::dsl::*;
+
+                        let sender_chat_id = &(i64::from(message.from.id) as i32);
+
+                        let found_tasks = tasks
+                            .filter(chat_id.eq(sender_chat_id))
+                            .filter(message_type.eq(&0))
+                            .filter(fullfilled.ne(&true))
+                            .limit(1)
+                            .load::<Task>(&connection)
+                            .expect("Error loading posts");
+                            // .filter(voices::published.eq(true))
+
+                        match found_tasks.len() {
+                            0 => println!("Not Found"),
+                            1 => {
+                                
+                                let found_task = &found_tasks[0];
+                                match found_task.task.as_ref() {
+                                    "saveTitle" => {
+                                        // Download voice
+                                        println!("Going to update \nchat_id:'{}',\nfileId:'{}', ", sender_chat_id, found_task.content);
+                                        //Update voice from task
+                                        let found_voices = voices
+                                            .filter(owner_id.eq(sender_chat_id))
+                                            .filter(file_id.eq(found_task.content.to_owned()));
+
+                                        let voice_updated = diesel::update(found_voices).set(title.eq(data)).execute(&connection).unwrap();
+                                        println!("Voice updated -> {:?}", voice_updated);
+
+                                        let task_updated = diesel::update(tasks
+                                            .filter(chat_id.eq(sender_chat_id))
+                                            .filter(message_type.eq(&0))
+                                            .filter(fullfilled.ne(&true))
+                                        ).set(fullfilled.eq(true)).execute(&connection).unwrap();
+                                        println!("Task updated -> {:?}", task_updated);
+
+                                        // Create permission
+                                        let permission_created = create_voice_permission(&connection, sender_chat_id, &found_task.content);
+                                        println!("found savetitle")
+                                    },
+                                    _ => println!("Found unknown message type"),
+                                }
+                                // let post = diesel::update(voices.find(found_tasks.))
+                                //     .set(published.eq(true))
+                                //     .get_result::<Post>(&connection)
+                                //     .expect(&format!("Unable to find post {}", id));
+                                // add permission to use
+                            },
+                            _ => println!("Found too much!!! This is not possible!"),
+                        }
+                        // println!("Displaying {} posts", results.len());
+                        // for voice in results {
+                        //     println!("{:?}", voice);
+                        //     println!("-----------\n");
+                        //     // println!("{}", voice.body);
+                        // }
 
                         // Answer message with "Hi".
                         api.spawn(message.text_reply(
@@ -80,12 +142,15 @@ fn main() {
                     MessageKind::Voice {ref data, ..} => {
                         println!("Got Voice <{}>: {:?}", &message.from.first_name, data);
                         // { file_id: "AwADBAADIQUAAu6jqFMgkXH89n2udwI", duration: 2, mime_type: Some("audio/ogg"), file_size: Some(3986) }
-                        match data.file_size {
+                        let voice = match data.file_size {
                             Some(value) => create_voice(&connection, &data.file_id, &(i64::from(message.from.id) as i32), &(data.duration as i32), &(value as i32)),
                             _ => create_voice(&connection, &data.file_id, &123, &(data.duration as i32), &0)
                         };
+
+                        create_task(&connection, &(i64::from(message.from.id) as i32), &0, "saveTitle", &voice.file_id);
+
                         api.spawn(message.text_reply(
-                            format!("Hi, {}! You just sent voice", &message.from.first_name)
+                            format!("Hi, {}! I've got your voice! Please send the title...", &message.from.first_name)
                         ));
                     },
                     _ => println!("Other kind"),
@@ -136,7 +201,7 @@ fn main() {
 fn create_voice<'a>(conn: &PgConnection, file_id: &'a str, owner_id: &'a i32, duration: &'a i32, size: &'a i32) -> Voice {
     use schema::voices;
 
-    let new_post = NewVoice {
+    let new_voice = NewVoice {
         file_id: file_id,
         owner_id: owner_id,
         duration: duration,
@@ -144,7 +209,37 @@ fn create_voice<'a>(conn: &PgConnection, file_id: &'a str, owner_id: &'a i32, du
     };
 
     diesel::insert_into(voices::table)
-        .values(&new_post)
+        .values(&new_voice)
+        .get_result(conn)
+        .expect("Error saving new post")
+}
+
+fn create_task<'a>(conn: &PgConnection, chat_id: &'a i32, message_type: &'a i32, task: &'a str, content: &'a str) -> Task {
+    use schema::tasks;
+
+    let new_task = NewTask {
+        chat_id: chat_id,
+        message_type: message_type,
+        task: task,
+        content: content,
+    };
+
+    diesel::insert_into(tasks::table)
+        .values(&new_task)
+        .get_result(conn)
+        .expect("Error saving new post")
+}
+
+fn create_voice_permission<'a>(conn: &PgConnection, owner_chat_id: &'a i32, voice_file_id: &'a str) -> VoicePermission {
+    use schema::voice_permissions;
+
+    let new_permission = NewVoicePermission {
+        owner_chat_id: owner_chat_id,
+        voice_file_id: voice_file_id,
+    };
+
+    diesel::insert_into(voice_permissions::table)
+        .values(&new_permission)
         .get_result(conn)
         .expect("Error saving new post")
 }
