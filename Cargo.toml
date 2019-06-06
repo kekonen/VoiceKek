@@ -11,3 +11,5 @@ telegram-bot = { path = "deps/telegram-bot/lib"}
 futures = "0.1.27"
 tokio-core = "0.1.17"
 chrono = "0.4.6"
+reqwest = "0.9.18"
+serde = { version = "1.0", features = ["derive"] }
