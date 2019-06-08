@@ -4,7 +4,7 @@ use chrono::NaiveDateTime;
 pub struct Voice {
     pub id: i32,
     pub file_id: String,
-    pub hash_sha1: Option<String>,
+    pub hash_b2s: Option<String>,
     pub owner_id: i32,
     pub title: Option<String>,
     pub duration: Option<i32>,

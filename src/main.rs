@@ -1,4 +1,3 @@
-extern crate chrono;
 extern crate futures;
 extern crate telegram_bot;
 extern crate tokio_core;
@@ -6,7 +5,6 @@ extern crate tokio_core;
 extern crate diesel;
 
 
-use chrono::NaiveDateTime;
 
 use diesel::prelude::*;
 
@@ -37,17 +35,6 @@ use telegram_bot::*;
 
 fn main() {
     let connection = establish_connection();
-    // let results = voices
-    //     .load::<Voice>(&connection)
-    //     .expect("Error loading posts");
-    //     // .filter(voices::published.eq(true))
-
-    // println!("Displaying {} posts", results.len());
-    // for voice in results {
-    //     println!("{:?}", voice);
-    //     println!("-----------\n");
-    //     // println!("{}", voice.body);
-    // }
 
     let mut core = Core::new().unwrap();
 
@@ -88,7 +75,6 @@ fn main() {
                             .limit(1)
                             .load::<Task>(&connection)
                             .expect("Error loading posts");
-                            // .filter(voices::published.eq(true))
 
                         match found_tasks.len() {
                             0 => println!("Not Found"),
@@ -97,61 +83,44 @@ fn main() {
                                 let found_task = &found_tasks[0];
                                 match found_task.task.as_ref() {
                                     "saveTitle" => {
-                                        // Download voice
-                                        // api.spawn(telegram_bot::types::requests::G);
-                                        // let future = api.send(GetMe);
-                                        // future.and_then(|me| Ok(println!("{:?}", me)));
-                                        // let downloaded_file = download_file(&token.clone(), &found_task.content, &format!("{}.ogg", &found_task.content));
-                                        /////
-                                        println!("LOL!")
-                                        // match downloaded_file {
-                                        //     Some(filesize) => {
-                                        //         println!("Going to update \nchat_id:'{}',\nfileId:'{}', ", sender_chat_id, found_task.content);
-                                        //         //Update voice from task
-                                        //         let found_voices = voices
-                                        //             .filter(owner_id.eq(sender_chat_id))
-                                        //             .filter(file_id.eq(found_task.content.to_owned()));
+                                        let downloaded_file = download_file(&token.clone(), &found_task.content, &format!("{}.ogg", &found_task.content));
 
-                                        //         let voice_updated = diesel::update(found_voices).set((
-                                        //             title.eq(data),
-                                        //             size.eq(filesize as i32),
-                                        //         )).execute(&connection).unwrap();
-                                        //         println!("Voice updated -> {:?}", voice_updated);
+                                        match downloaded_file {
+                                            Some((filesize, hash)) => {
+                                                println!("Going to update \nchat_id:'{}',\nfileId:'{}', ", sender_chat_id, found_task.content);
 
-                                        //         let task_updated = diesel::update(tasks
-                                        //             .filter(chat_id.eq(sender_chat_id))
-                                        //             .filter(message_type.eq(&0))
-                                        //             .filter(fullfilled.ne(&true))
-                                        //         ).set(fullfilled.eq(true)).execute(&connection).unwrap();
-                                        //         println!("Task updated -> {:?}", task_updated);
+                                                let found_voices = voices
+                                                    .filter(owner_id.eq(sender_chat_id))
+                                                    .filter(file_id.eq(found_task.content.to_owned()));
 
-                                        //         // Create permission
-                                        //         let permission_created = create_voice_permission(&connection, sender_chat_id, &found_task.content);
-                                        //         println!("found savetitle")
-                                        //     },
-                                        //     _ => println!("Couldn't download the file!")
-                                        // }
+                                                let voice_updated = diesel::update(found_voices).set((
+                                                    title.eq(data),
+                                                    size.eq(filesize as i32),
+                                                    hash_b2s.eq(hash)
+                                                )).execute(&connection).unwrap();
+                                                println!("Voice updated -> {:?}", voice_updated);
+
+                                                let task_updated = diesel::update(tasks
+                                                    .filter(chat_id.eq(sender_chat_id))
+                                                    .filter(message_type.eq(&0))
+                                                    .filter(fullfilled.ne(&true))
+                                                ).set(fullfilled.eq(true)).execute(&connection).unwrap();
+                                                println!("Task updated -> {:?}", task_updated);
+
+                                                let permission_created = create_voice_permission(&connection, sender_chat_id, &found_task.content);
+                                                println!("found savetitle")
+                                            },
+                                            _ => println!("Couldn't download the file!")
+                                        }
 
                                         
                                     },
                                     _ => println!("Found unknown message type"),
                                 }
-                                // let post = diesel::update(voices.find(found_tasks.))
-                                //     .set(published.eq(true))
-                                //     .get_result::<Post>(&connection)
-                                //     .expect(&format!("Unable to find post {}", id));
-                                // add permission to use
                             },
                             _ => println!("Found too much!!! This is not possible!"),
                         }
-                        // println!("Displaying {} posts", results.len());
-                        // for voice in results {
-                        //     println!("{:?}", voice);
-                        //     println!("-----------\n");
-                        //     // println!("{}", voice.body);
-                        // }
 
-                        // Answer message with "Hi".
                         api.spawn(message.text_reply(
                             format!("Hi, {}! You just wrote '{}'", &message.from.first_name, data)
                         ));
@@ -165,18 +134,7 @@ fn main() {
                     },
                     MessageKind::Voice {ref data, ..} => {
                         println!("Got Voice <{}>: {:?}", &message.from.first_name, data);
-                        println!("===================> {:?}", data.to_file_ref());
-                        let future = api.send(telegram_bot::types::requests::GetFile::new(data)).and_then(|me| {
-                            println!("We got smth!: {:?}", me);
-                            Ok(())
-                        })
-                        // .join(future::ok(2))
-                        .wait();
-                        println!("<<<<====: {:?}", future);
-                        // future.and_then(|me| Ok(println!("{:?}", me)));
-                        
-                        //
-                        // { file_id: "AwADBAADIQUAAu6jqFMgkXH89n2udwI", duration: 2, mime_type: Some("audio/ogg"), file_size: Some(3986) }
+
                         let voice = match data.file_size {
                             Some(value) => create_voice(&connection, &data.file_id, &(i64::from(message.from.id) as i32), &(data.duration as i32), &(value as i32)),
                             _ => create_voice(&connection, &data.file_id, &123, &(data.duration as i32), &0)

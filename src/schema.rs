@@ -22,7 +22,7 @@ table! {
     voices (id) {
         id -> Int4,
         file_id -> Varchar,
-        hash_sha1 -> Nullable<Varchar>,
+        hash_b2s -> Nullable<Varchar>,
         owner_id -> Int4,
         title -> Nullable<Varchar>,
         duration -> Nullable<Int4>,
