@@ -29,19 +29,27 @@ struct Answer {
   result: Result,
 }
 
+// pub fn get_hash(filename: &str) -> Option<String> {
+//     let mut data = Vec::new();
+//     let mut file = File::open(&filename).unwrap();
+//     file.read_to_end(&mut data).expect("Unable to read data");
+
+//     let mut hasher = Sha256::new();
+//     io::copy(&mut file, &mut hasher);
+//     let output = hasher.result();
+//     let b2s = HEXUPPER.encode(output.as_ref());
+
+//     Some(b2s)
+// }
+
 pub fn get_hash(filename: &str) -> Option<String> {
-    let mut data = Vec::new();
-    let mut file = File::open(&filename).unwrap();
-    file.read_to_end(&mut data).expect("Unable to read data");
+    use std::process::Command;
 
-    let mut hasher = Sha256::new();
-    io::copy(&mut file, &mut hasher);
-    let output = hasher.result();
-    let b2s = HEXUPPER.encode(output.as_ref());
-
-    Some(b2s)
+    let stdout_ = Command::new("./hash.sh").arg(&filename).output().unwrap().stdout;
+    let hash = str::from_utf8(&stdout_).unwrap().trim();
+    println!("Made hash ====> {}", &hash);
+    Some(String::from(hash))
 }
-
 
 pub fn download_file(token: &str, file_id: &str, filename: &str) -> Option<(i64, String)> { // impl Future<Item=(), Error=()>
     let client = Client::new();
