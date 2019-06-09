@@ -45,7 +45,7 @@ struct Answer {
 pub fn get_hash(filename: &str) -> Option<String> {
     use std::process::Command;
 
-    let stdout_ = Command::new("./hash.sh").arg(&filename).output().unwrap().stdout;
+    let stdout_ = Command::new("./utilities/hash.sh").arg(&filename).output().unwrap().stdout;
     let hash = str::from_utf8(&stdout_).unwrap().trim();
     println!("Made hash ====> {}", &hash);
     Some(String::from(hash))

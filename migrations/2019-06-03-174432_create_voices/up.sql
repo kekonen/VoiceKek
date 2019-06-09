@@ -2,7 +2,7 @@
 CREATE TABLE voices (
   id SERIAL PRIMARY KEY,
   file_id VARCHAR(40) UNIQUE NOT NULL,
-  hash_b2s VARCHAR(64),
+  hash_sha256 VARCHAR(64),
   owner_id INTEGER NOT NULL,
   title VARCHAR(30),
   duration INTEGER,
@@ -26,5 +26,13 @@ CREATE TABLE voice_permissions (
   owner_chat_id INTEGER NOT NULL,
   voice_file_id VARCHAR(40) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  FOREIGN KEY ("voice_id") REFERENCES voices(id)
+);
+
+CREATE TABLE file_source (
+  id SERIAL PRIMARY KEY,
+  mime_type VARCHAR(20) NOT NULL,
+  hash_sha256 VARCHAR(64) NOT NULL,
+  voice_id SERIAL,
   FOREIGN KEY ("voice_id") REFERENCES voices(id)
 );

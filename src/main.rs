@@ -30,7 +30,7 @@ use diesel::prelude::*;
 pub mod models;
 pub mod schema;
 
-use self::models::{Voice, NewVoice, Task, NewTask, VoicePermission, NewVoicePermission};
+use self::models::{Voice, NewVoice, Task, NewTask, VoicePermission, NewVoicePermission, FileSource, NewFileSource};
 // use self::schema::voices::dsl::*;
 // use self::schema::tasks::dsl::*;
 use std::str;
@@ -127,7 +127,7 @@ fn main() {
                                                         let voice_updated = diesel::update(found_voices).set((
                                                             title.eq(data),
                                                             size.eq(filesize as i32),
-                                                            hash_b2s.eq(hash),
+                                                            hash_sha256.eq(hash),
                                                             active.eq(true),
                                                         )).execute(&connection).unwrap();
                                                         println!("Voice updated -> {:?}", voice_updated);
@@ -191,7 +191,7 @@ fn main() {
 
                                                 let voice_updated = diesel::update(found_voices).set((
                                                     title.eq(data),
-                                                    hash_b2s.eq(voice_hash),
+                                                    hash_sha256.eq(voice_hash),
                                                     active.eq(true),
                                                     size.eq(Some(filelen as i32)),
                                                 )).execute(&connection).unwrap();
@@ -233,7 +233,7 @@ fn main() {
 
                                                 let found_voices = voices
                                                     .filter(owner_id.eq(sender_chat_id))
-                                                    .filter(hash_b2s.eq(&voice_hash))
+                                                    // .filter(hash_sha256.eq(&voice_hash))
                                                     .filter(file_id.eq(found_task.content.to_owned()));
 
                                                 let voice_updated = diesel::update(found_voices).set((
@@ -292,7 +292,7 @@ fn main() {
 
                         match found_voice {
                             Ok(the_voice) => {
-                                match check_if_same_voice(&token.clone(), &data.file_id, &the_voice.hash_b2s.unwrap()) {
+                                match check_if_same_voice(&token.clone(), &data.file_id, &the_voice.hash_sha256.unwrap()) {
                                     Some(_) => {
                                         println!("Found creating rules!======");
 
@@ -328,40 +328,53 @@ fn main() {
                         ));
                     },
                     MessageKind::Document {ref data, ..} => {
-                        use self::schema::voices::dsl::*;
+                        use self::schema::file_source::dsl::*;
                         println!("Got Document <{:?}>: {:?}", &message.from, data);
                         let sender_chat_id = &(i64::from(message.from.id) as i32);
                         if data.mime_type == Some(String::from("audio/x-wav")) {
                             let wav_filename = format!("wav/{}.wav", &data.file_id);
                             let voices_filename = format!("voices/{}.ogg", &data.file_id);
                             let (wav_size, wav_hash) = download_file(&token.clone(), &data.file_id, &wav_filename).unwrap();
-                            let covert_wav_to_ogg = Command::new("./utilities/smth2ogg.sh")
-                            .args(&[
-                                &wav_filename,
-                                &voices_filename,
-                            ])
-                            .output();
                             
-                            println!("Result ==>{:?}", covert_wav_to_ogg);
-                            let voice_hash = get_hash(&voices_filename);
-                            let voice_duration = extract_duration(str::from_utf8(&covert_wav_to_ogg.unwrap().stderr).unwrap()).unwrap() as i32;
-                            println!("LOL");
-                            let found_voice = voices
-                                .filter(hash_b2s.eq(&voice_hash))
-                                .first::<Voice>(&connection);
+                            //xxxxxx
+                            let found_source = file_source
+                                .filter(hash_sha256.eq(&wav_hash))
+                                .first::<FileSource>(&connection);
 
-                            match found_voice {
-                                Ok(the_voice) => {
+                            match found_source {
+                                Ok(the_source) => {
+                                    use self::schema::voices::dsl::*;
                                     println!("Found voice with same hash!!!!");
-                                    let created_permission = create_voice_permission(&connection, &the_voice.id, &sender_chat_id, &the_voice.file_id);
+                                    let corresponding_voice = voices
+                                        .filter(id.eq(the_source.voice_id))
+                                        .first::<Voice>(&connection);
+                                    match corresponding_voice {
+                                        Ok(the_voice) => {
+                                            create_voice_permission(&connection, &the_voice.id, &sender_chat_id, &the_voice.file_id);
+                                            ()
+                                        },
+                                        _ => println!("Couldn't find the voice from source"),
+                                    }
                                 },
                                 _ => {
                                     println!("Not found voice !!!!");
+
+                                    let covert_wav_to_ogg = Command::new("./utilities/smth2ogg.sh")
+                                    .args(&[
+                                        &wav_filename,
+                                        &voices_filename,
+                                    ])
+                                    .output();
+                                    
+                                    println!("Result ==>{:?}", covert_wav_to_ogg);
+                                    let voice_duration = extract_duration(str::from_utf8(&covert_wav_to_ogg.unwrap().stderr).unwrap()).unwrap() as i32;
+                                    println!("LOL");
 
                                     let voice = match data.file_size {
                                         Some(value) => create_voice(&connection, &data.file_id, &(i64::from(message.from.id) as i32), &voice_duration, &(value as i32)),
                                         _ => create_voice(&connection, &data.file_id, &123, &voice_duration, &0)
                                     };
+                                    create_file_source(&connection, &"audio/x-wav", &wav_hash, &voice.id);
                                     create_task(&connection, &(i64::from(message.from.id) as i32), &0, "saveTitle.wav", &voice.file_id);
                                 }
                             }
@@ -487,6 +500,21 @@ fn create_voice_permission<'a>(conn: &PgConnection, voice_id: &'a i32, owner_cha
 
     diesel::insert_into(voice_permissions::table)
         .values(&new_permission)
+        .get_result(conn)
+        .expect("Error saving new post")
+}
+
+fn create_file_source<'a>(conn: &PgConnection, mime_type: &'a str, hash_sha256: &'a str, voice_id: &'a i32) -> FileSource {
+    use schema::file_source;
+
+    let new_file_source = NewFileSource {
+        mime_type: mime_type,
+        hash_sha256: hash_sha256,
+        voice_id: voice_id,
+    };
+
+    diesel::insert_into(file_source::table)
+        .values(&new_file_source)
         .get_result(conn)
         .expect("Error saving new post")
 }
