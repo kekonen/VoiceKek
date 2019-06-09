@@ -155,7 +155,10 @@ fn main() {
                                         .output();
                                         
                                         println!("Result ==>{:?}", covert_mp3_to_ogg);
-                                        
+
+                                        let file = std::fs::File::open(&voices_filename)?;
+                                        let filelen = file.metadata().unwrap().len();
+
                                         let voice_hash = get_hash(&voices_filename);
 
                                         println!("Going to update \nchat_id:'{}',\nfileId:'{}', ", sender_chat_id, found_task.content);
@@ -174,6 +177,7 @@ fn main() {
                                             title.eq(data),
                                             hash_b2s.eq(voice_hash),
                                             active.eq(true),
+                                            size.eq(Some(filelen as i32)),
                                         )).execute(&connection).unwrap();
                                         println!("Voice updated -> {:?}", voice_updated);
 
@@ -379,6 +383,7 @@ fn check_if_same_voice(token: &str, one: &str, hashh: &str) -> Option<()> {
 
     match downloaded_file {
         Some((filesize, hash)) => {
+            println!("HAAAAAAAAASH==> {}", hash);
             if hash == hashh {
                 return Some(())
             }

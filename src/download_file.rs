@@ -5,8 +5,7 @@ use crate::futures::*;
 use serde::{Deserialize};
 extern crate serde_json;
 
-extern crate blake2;
-use blake2::{Blake2b, Blake2s, Digest};
+use sha2::{Sha256, Digest};
 use data_encoding::HEXUPPER;
 
 use std::io;
@@ -35,8 +34,8 @@ pub fn get_hash(filename: &str) -> Option<String> {
     let mut file = File::open(&filename).unwrap();
     file.read_to_end(&mut data).expect("Unable to read data");
 
-    let mut hasher = Blake2s::new();
-    hasher.input(&mut data);
+    let mut hasher = Sha256::new();
+    io::copy(&mut file, &mut hasher);
     let output = hasher.result();
     let b2s = HEXUPPER.encode(output.as_ref());
 
