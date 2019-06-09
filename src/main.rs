@@ -311,7 +311,7 @@ fn main() {
                     println!("{}, {:?}", f_id, p_title);
                     match p_title {
                         Some(ttl) => {
-                            if ttl.contains(&inline_query.query) {
+                            if ttl.to_lowercase().contains(&inline_query.query) {
                                 results.push(
                                     telegram_bot::types::InlineQueryResult::InlineQueryResultVoice(
                                         telegram_bot::types::InlineQueryResultVoice::new(i.to_string(), ttl, format!("http://kekonen.club/{}.ogg", f_id))
