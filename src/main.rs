@@ -5,6 +5,21 @@ extern crate tokio_core;
 extern crate diesel;
 use std::process::Command;
 
+#[macro_use]
+extern crate lazy_static;
+extern crate regex;
+
+use regex::Regex;
+
+fn extract_duration(input: &str) -> Option<i8> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"Duration: 00:(?P<Minutes>\d{2}):(?P<Seconds>\d{2}).(?P<MilliSeconds>\d{2}), bitrate:").unwrap();
+    }
+    RE.captures(input).and_then(|cap| {
+        cap.name("Seconds").map(|seconds| String::from(seconds.as_str()).parse::<i8>().unwrap())
+    })
+}
+
 
 
 
@@ -18,6 +33,7 @@ pub mod schema;
 use self::models::{Voice, NewVoice, Task, NewTask, VoicePermission, NewVoicePermission};
 // use self::schema::voices::dsl::*;
 // use self::schema::tasks::dsl::*;
+use std::str;
 
 mod lib;
 use lib::{establish_connection};
@@ -147,22 +163,9 @@ fn main() {
 
                                                 //ffmpeg -i mp3/smth.mp3 -ac 1 -map 0:a -codec:a libopus -b:a 128k -vbr off -ar 24000 voices/testlib.ogg
                                                 println!("Running for {}", mp3_filename);
-                                                let covert_mp3_to_ogg = Command::new("ffmpeg")
+                                                let covert_mp3_to_ogg = Command::new("./utilities/smth2ogg.sh")
                                                 .args(&[
-                                                    "-i",
                                                     &mp3_filename,
-                                                    "-ac",
-                                                    "1",
-                                                    "-map",
-                                                    "0:a",
-                                                    "-codec:a",
-                                                    "libopus",
-                                                    "-b:a",
-                                                    "128k",
-                                                    // "vbr",
-                                                    // "off",
-                                                    // "ar",
-                                                    // "24000",
                                                     &voices_filename,
                                                 ])
                                                 .output();
@@ -189,6 +192,52 @@ fn main() {
                                                 let voice_updated = diesel::update(found_voices).set((
                                                     title.eq(data),
                                                     hash_b2s.eq(voice_hash),
+                                                    active.eq(true),
+                                                    size.eq(Some(filelen as i32)),
+                                                )).execute(&connection).unwrap();
+                                                println!("Voice updated -> {:?}", voice_updated);
+
+                                                let task_updated = diesel::update(tasks
+                                                    .filter(chat_id.eq(sender_chat_id))
+                                                    .filter(message_type.eq(&0))
+                                                    .filter(fullfilled.ne(&true))
+                                                ).set(fullfilled.eq(true)).execute(&connection).unwrap();
+                                                println!("Task updated -> {:?}", task_updated);
+
+                                                let permission_created = create_voice_permission(&connection, &found_voice.id, sender_chat_id, &found_task.content);
+                                                println!("found savetitle")
+                                            }
+                                        }
+                                    },
+                                    "saveTitle.wav" => {
+                                        match voices.filter(title.eq(&data)).first::<Voice>(&connection) {
+                                            Ok(_) => {
+                                                api.spawn(message.text_reply(
+                                                    format!("Hi, {}! You just wrote '{}' and it already exists, write another one", &message.from.first_name, data)
+                                                ));
+                                            }, _ => {
+                                                let voices_filename = format!("voices/{}.ogg", &found_task.content);
+
+                                                let file = std::fs::File::open(&voices_filename)?;
+                                                let filelen = file.metadata().unwrap().len();
+
+                                                let voice_hash = get_hash(&voices_filename);
+
+                                                println!("Going to update \nchat_id:'{}',\nfileId:'{}', ", sender_chat_id, found_task.content);
+
+                                                let found_voice = voices
+                                                    .filter(owner_id.eq(sender_chat_id))
+                                                    .filter(file_id.eq(found_task.content.to_owned()))
+                                                    .first::<Voice>(&connection)
+                                                    .expect("Error loading posts");
+
+                                                let found_voices = voices
+                                                    .filter(owner_id.eq(sender_chat_id))
+                                                    .filter(hash_b2s.eq(&voice_hash))
+                                                    .filter(file_id.eq(found_task.content.to_owned()));
+
+                                                let voice_updated = diesel::update(found_voices).set((
+                                                    title.eq(data),
                                                     active.eq(true),
                                                     size.eq(Some(filelen as i32)),
                                                 )).execute(&connection).unwrap();
@@ -238,7 +287,6 @@ fn main() {
                         let sender_chat_id = &(i64::from(message.from.id) as i32);
 
                         let found_voice = voices
-                            // .filter(owner_chat_id.eq(sender_chat_id))
                             .filter(size.eq(&(data.file_size.unwrap() as i32)))
                             .first::<Voice>(&connection);
 
@@ -279,6 +327,53 @@ fn main() {
                             format!("Hi, {}! I've got your voice! Please send the title...", &message.from.first_name)
                         ));
                     },
+                    MessageKind::Document {ref data, ..} => {
+                        use self::schema::voices::dsl::*;
+                        println!("Got Document <{:?}>: {:?}", &message.from, data);
+                        let sender_chat_id = &(i64::from(message.from.id) as i32);
+                        if data.mime_type == Some(String::from("audio/x-wav")) {
+                            let wav_filename = format!("wav/{}.wav", &data.file_id);
+                            let voices_filename = format!("voices/{}.ogg", &data.file_id);
+                            let (wav_size, wav_hash) = download_file(&token.clone(), &data.file_id, &wav_filename).unwrap();
+                            let covert_wav_to_ogg = Command::new("./utilities/smth2ogg.sh")
+                            .args(&[
+                                &wav_filename,
+                                &voices_filename,
+                            ])
+                            .output();
+                            
+                            println!("Result ==>{:?}", covert_wav_to_ogg);
+                            let voice_hash = get_hash(&voices_filename);
+                            let voice_duration = extract_duration(str::from_utf8(&covert_wav_to_ogg.unwrap().stderr).unwrap()).unwrap() as i32;
+                            println!("LOL");
+                            let found_voice = voices
+                                .filter(hash_b2s.eq(&voice_hash))
+                                .first::<Voice>(&connection);
+
+                            match found_voice {
+                                Ok(the_voice) => {
+                                    println!("Found voice with same hash!!!!");
+                                    let created_permission = create_voice_permission(&connection, &the_voice.id, &sender_chat_id, &the_voice.file_id);
+                                },
+                                _ => {
+                                    println!("Not found voice !!!!");
+
+                                    let voice = match data.file_size {
+                                        Some(value) => create_voice(&connection, &data.file_id, &(i64::from(message.from.id) as i32), &voice_duration, &(value as i32)),
+                                        _ => create_voice(&connection, &data.file_id, &123, &voice_duration, &0)
+                                    };
+                                    create_task(&connection, &(i64::from(message.from.id) as i32), &0, "saveTitle.wav", &voice.file_id);
+                                }
+                            }
+
+                            api.spawn(message.text_reply(
+                                format!("Hi, {}! I've got your voice! Please send the title...", &message.from.first_name)
+                            ));
+
+                        } else {
+                            println!("Not correct mimetype");
+                        }
+                    },                    
                     _ => println!("Other kind"),
                 }
                 // if let MessageKind::Text {ref data, ..} = message.kind {

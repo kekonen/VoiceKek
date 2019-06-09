@@ -2,3 +2,6 @@
 **/*.rs.bk
 .env
 files
+mp3
+wav
+voices
