@@ -30,6 +30,19 @@ struct Answer {
   result: Result,
 }
 
+pub fn get_hash(filename: &str) -> Option<String> {
+    let mut data = Vec::new();
+    let mut file = File::open(&filename).unwrap();
+    file.read_to_end(&mut data).expect("Unable to read data");
+
+    let mut hasher = Blake2s::new();
+    hasher.input(&mut data);
+    let output = hasher.result();
+    let b2s = HEXUPPER.encode(output.as_ref());
+
+    Some(b2s)
+}
+
 
 pub fn download_file(token: &str, file_id: &str, filename: &str) -> Option<(i64, String)> { // impl Future<Item=(), Error=()>
     let client = Client::new();
@@ -48,7 +61,7 @@ pub fn download_file(token: &str, file_id: &str, filename: &str) -> Option<(i64,
     .unwrap();
 
     let file_url = format!("https://api.telegram.org/file/bot{}/{}", token, json.result.file_path);
-    let file_path = format!("files/{}", filename);
+    let file_path = format!("{}", filename);
     
     let b2s_hash = client.get(&file_url)
     .send()
@@ -61,16 +74,7 @@ pub fn download_file(token: &str, file_id: &str, filename: &str) -> Option<(i64,
         Ok(file_path)
     })
     .and_then(|x|{
-        let mut data = Vec::new();
-        let mut file = File::open(&x).unwrap();
-        file.read_to_end(&mut data).expect("Unable to read data");
-
-        let mut hasher = Blake2s::new();
-        hasher.input(&mut data);
-        let output = hasher.result();
-        let b2s = HEXUPPER.encode(output.as_ref());
-
-        Ok(b2s)
+        Ok(get_hash(&x).unwrap())
     })
     .map_err(|e| format!("Error: {:?}", e))
     .wait()

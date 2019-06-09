@@ -12,6 +12,7 @@ table! {
 table! {
     voice_permissions (id) {
         id -> Int4,
+        voice_id -> Int4,
         owner_chat_id -> Int4,
         voice_file_id -> Varchar,
         created_at -> Timestamp,
@@ -27,8 +28,11 @@ table! {
         title -> Nullable<Varchar>,
         duration -> Nullable<Int4>,
         size -> Nullable<Int4>,
+        active -> Bool,
     }
 }
+
+joinable!(voice_permissions -> voices (voice_id));
 
 allow_tables_to_appear_in_same_query!(
     tasks,

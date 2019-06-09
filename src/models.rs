@@ -9,6 +9,7 @@ pub struct Voice {
     pub title: Option<String>,
     pub duration: Option<i32>,
     pub size: Option<i32>,
+    pub active: bool,
 }
 
 #[derive(Queryable, Debug)]
@@ -24,6 +25,7 @@ pub struct Task {
 #[derive(Queryable, Debug)]
 pub struct VoicePermission {
     pub id: i32,
+    pub voice_id: i32,
     pub owner_chat_id: i32,
     pub voice_file_id: String,
     pub created_at: NaiveDateTime,
@@ -56,6 +58,7 @@ use super::schema::voice_permissions;
 #[derive(Insertable)]
 #[table_name="voice_permissions"]
 pub struct NewVoicePermission<'a> {
+    pub voice_id: &'a i32,
     pub owner_chat_id: &'a i32,
     pub voice_file_id: &'a str,
 }
