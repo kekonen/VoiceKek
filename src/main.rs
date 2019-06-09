@@ -252,6 +252,10 @@ fn main() {
 
                                                 let permission_created = create_voice_permission(&connection, &found_voice.id, sender_chat_id, &found_task.content);
                                                 println!("found savetitle")
+                                                
+                                                // api.spawn(message.text_reply(
+                                                //     format!("Hi, {}! You can now use the audio with '{}'", &message.from.first_name, data)
+                                                // ));
                                             }
                                         }
                                     },
@@ -261,9 +265,9 @@ fn main() {
                             _ => println!("Found too much!!! This is not possible!"),
                         }
 
-                        api.spawn(message.text_reply(
-                            format!("Hi, {}! You just wrote '{}'", &message.from.first_name, data)
-                        ));
+                        // api.spawn(message.text_reply(
+                        //     format!("Hi, {}! You just wrote '{}'", &message.from.first_name, data)
+                        // ));
                     },
                     MessageKind::Audio {ref data, ..} => {
                         println!("Got Audio <{}>: {:?}", &message.from.first_name, data);
@@ -298,6 +302,9 @@ fn main() {
 
                                         let created_permission = create_voice_permission(&connection, &the_voice.id, &sender_chat_id, &the_voice.file_id);
                                         println!("Added permission: {:?}", created_permission);
+                                        api.spawn(message.text_reply(
+                                            format!("Hi, {}! You can now use the audio name '{}'", &message.from.first_name, &the_voice.title.unwrap())
+                                        ));
                                     },
                                     _ => {
                                         println!("similar size but no, not exist!======");
@@ -351,7 +358,9 @@ fn main() {
                                     match corresponding_voice {
                                         Ok(the_voice) => {
                                             create_voice_permission(&connection, &the_voice.id, &sender_chat_id, &the_voice.file_id);
-                                            ()
+                                            api.spawn(message.text_reply(
+                                                format!("Hi, {}! You can now use the audio name '{}'", &message.from.first_name, &the_voice.title.unwrap())
+                                            ))
                                         },
                                         _ => println!("Couldn't find the voice from source"),
                                     }
