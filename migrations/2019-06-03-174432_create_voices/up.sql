@@ -4,7 +4,7 @@ CREATE TABLE voices (
   file_id VARCHAR(40) UNIQUE NOT NULL,
   hash_sha256 VARCHAR(64),
   owner_id INTEGER NOT NULL,
-  title VARCHAR(30),
+  title VARCHAR(40),
   duration INTEGER,
   size INTEGER,
   active BOOLEAN NOT NULL DEFAULT 'f'
