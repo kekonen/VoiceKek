@@ -8,6 +8,14 @@ table! {
 }
 
 table! {
+    kek_user (id) {
+        id -> Int4,
+        chat_id -> Int4,
+        created_at -> Timestamp,
+    }
+}
+
+table! {
     tasks (id) {
         id -> Int4,
         chat_id -> Int4,
@@ -15,6 +23,15 @@ table! {
         task -> Varchar,
         content -> Varchar,
         fullfilled -> Bool,
+    }
+}
+
+table! {
+    user_role (id) {
+        id -> Int4,
+        user_id -> Int4,
+        role_name -> Varchar,
+        created_at -> Timestamp,
     }
 }
 
@@ -42,11 +59,14 @@ table! {
 }
 
 joinable!(file_source -> voices (voice_id));
+joinable!(user_role -> kek_user (user_id));
 joinable!(voice_permissions -> voices (voice_id));
 
 allow_tables_to_appear_in_same_query!(
     file_source,
+    kek_user,
     tasks,
+    user_role,
     voice_permissions,
     voices,
 );

@@ -36,3 +36,17 @@ CREATE TABLE file_source (
   voice_id SERIAL,
   FOREIGN KEY ("voice_id") REFERENCES voices(id)
 );
+
+CREATE TABLE kek_user (
+  id SERIAL PRIMARY KEY,
+  chat_id INTEGER NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE user_role (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  role_name VARCHAR(10) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  FOREIGN KEY ("user_id") REFERENCES kek_user(id)
+);

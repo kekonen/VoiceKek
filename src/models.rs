@@ -39,6 +39,22 @@ pub struct FileSource {
     pub voice_id: i32,
 }
 
+#[derive(Queryable, Debug)]
+pub struct KekUser {
+    pub id: i32,
+    pub chat_id: i32,
+    pub created_at: NaiveDateTime,
+}
+
+
+#[derive(Queryable, Debug)]
+pub struct UserRole {
+    pub id: i32,
+    pub user_id: i32,
+    pub user_role: String,
+    pub created_at: NaiveDateTime,
+}
+
 use super::schema::voices;
 
 #[derive(Insertable)]
@@ -79,4 +95,21 @@ pub struct NewFileSource<'a> {
     pub mime_type: &'a str,
     pub hash_sha256: &'a str,
     pub voice_id: &'a i32,
+}
+
+use super::schema::kek_user;
+
+#[derive(Insertable)]
+#[table_name="kek_user"]
+pub struct NewKekUser<'a> {
+    pub chat_id: &'a i32,
+}
+
+use super::schema::user_role;
+
+#[derive(Insertable)]
+#[table_name="user_role"]
+pub struct NewUserRole<'a> {
+    pub user_id: &'a i32,
+    pub role_name: &'a str,
 }
