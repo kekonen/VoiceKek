@@ -93,11 +93,17 @@ fn main() {
 
                         match data.as_ref() {
                             "/start" => {
-                                create_user(&connection, &sender_chat_id);
-                                create_user_role_by_chat_id(&connection, &sender_chat_id, "user");
-                                api.spawn(message.text_reply(
-                                    format!("Hi, {}! Welcome to Voice Kek Bot!", &message.from.first_name)
-                                ));
+                                if get_user(&connection, &sender_chat_id).is_none() {
+                                    create_user(&connection, &sender_chat_id);
+                                    create_user_role_by_chat_id(&connection, &sender_chat_id, "user");
+                                    api.spawn(message.text_reply(
+                                        format!("Hi, {}! Welcome to Voice Kek Bot!", &message.from.first_name)
+                                    ));
+                                } else {
+                                    api.spawn(message.text_reply(
+                                        format!("Hello again!")
+                                    ));
+                                }
                             },
                             _ => {
                                 let found_tasks = tasks
@@ -633,6 +639,15 @@ fn create_user_role_by_chat_id<'a>(conn: &PgConnection, chat_id: &'a i32, role_n
         .expect("Error loading posts");
 
     create_user_role(&conn, &found_user.id, role_name)
+}
+
+fn get_user<'a>(conn: &PgConnection, chat_id: &'a i32) -> Option<KekUser> {
+    use self::schema::kek_user::dsl::*;
+
+    match kek_user.filter(chat_id.eq(&chat_id)).first::<KekUser>(conn) {
+        Ok(user) => return Some(user),
+        _ => return None
+    }
 }
 
 fn check_if_same_voice(token: &str, one: &str, hashh: &str) -> Option<()> {
