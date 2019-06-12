@@ -336,11 +336,25 @@ fn main() {
                                     Some(_) => {
                                         println!("Found creating rules!======");
 
-                                        let created_permission = create_voice_permission(&connection, &the_voice.id, &sender_chat_id, &the_voice.file_id);
-                                        println!("Added permission: {:?}", created_permission);
-                                        api.spawn(message.text_reply(
-                                            format!("Hi, {}! You can now use the audio name '{}'", &message.from.first_name, &the_voice.title.unwrap())
-                                        ));
+                                        use self::schema::voice_permissions::dsl::*;
+                                        let found_perms = voice_permissions
+                                            .filter(owner_chat_id.eq(&sender_chat_id))
+                                            .filter(voice_id.eq(&the_voice.id))
+                                            .load::<VoicePermission>(&connection)
+                                            .expect("Error loading posts");
+                                        
+                                        if found_perms.len() == 0 {
+                                            let created_permission = create_voice_permission(&connection, &the_voice.id, &sender_chat_id, &the_voice.file_id);
+                                            println!("Added permission: {:?}", created_permission);
+                                            api.spawn(message.text_reply(
+                                                format!("Hi, {}! You can now use the audio name '{}'", &message.from.first_name, &the_voice.title.unwrap())
+                                            ));
+                                        } else {
+                                            api.spawn(message.text_reply(
+                                                format!("Already in ur library")
+                                            ));
+                                        }
+                                        
                                     },
                                     _ => {
                                         println!("similar size but no, not exist!======");
@@ -351,6 +365,9 @@ fn main() {
                                         };
 
                                         create_task(&connection, &(i64::from(message.from.id) as i32), &0, "saveTitle", &voice.file_id);
+                                        api.spawn(message.text_reply(
+                                            format!("Hi, {}! I've got your voice! Please send the title...", &message.from.first_name)
+                                        ));
                                     },
                                 }
                             },
@@ -363,12 +380,13 @@ fn main() {
                                 };
 
                                 create_task(&connection, &(i64::from(message.from.id) as i32), &0, "saveTitle", &voice.file_id);
+                                api.spawn(message.text_reply(
+                                    format!("Hi, {}! I've got your voice! Please send the title...", &message.from.first_name)
+                                ));
                             }
                         }
 
-                        api.spawn(message.text_reply(
-                            format!("Hi, {}! I've got your voice! Please send the title...", &message.from.first_name)
-                        ));
+                        
                     },
                     MessageKind::Document {ref data, ..} => {
                         use self::schema::file_source::dsl::*;
@@ -451,18 +469,23 @@ fn main() {
                             .load::<KekUser>(&connection)
                             .expect("Error loading posts");
 
+                let mut results = Vec::new();
+                let mut switch_pm_text: Option<String> = None;
+                let mut switch_pm_parameter: Option<String> = None;
+
                 if found_user.len() >= 1 {
                     println!("id:{:?}", inline_query);
                     let found_perms: Vec<(String, Option<String>)> = voice_permissions.inner_join(voices)
                                 .filter(owner_chat_id.eq(&(i64::from(inline_query.from.id) as i32)))
                                 .filter(active.eq(true))
                                 .select((file_id, title))
+                                .limit(50)
                                 .load(&connection)
                                 .expect("Error loading posts");
                     
                     println!("Perms ===> {:?}", found_perms);
 
-                    let mut results = Vec::new();
+                    
 
                     let mut i = 0;
                     for (f_id, p_title) in found_perms{
@@ -482,12 +505,13 @@ fn main() {
                             _ => println!("Found file with no title")
                         }
                     }
-
-                    
-
-                    api.spawn(telegram_bot::types::requests::AnswerInlineQuery::new(inline_query.id, results));
                     // api.spawn(inline_query);
+                } else {
+                    switch_pm_text = Some(String::from("Hey! Press me!"));
+                    switch_pm_parameter = Some(String::from("1"));
                 }
+
+                api.spawn(telegram_bot::types::requests::AnswerInlineQuery::new(inline_query.id, results, switch_pm_text, switch_pm_parameter));
 
                 
             },
