@@ -630,21 +630,21 @@ fn create_user_role<'a>(conn: &PgConnection, user_id: &'a i32, role_name: &'a st
         .expect("Error saving new post")
 }
 
-fn create_user_role_by_chat_id<'a>(conn: &PgConnection, chat_id: &'a i32, role_name: &'a str) -> UserRole {
+fn create_user_role_by_chat_id<'a>(conn: &PgConnection, users_chat_id: &'a i32, role_name: &'a str) -> UserRole {
     use self::schema::kek_user::dsl::*;
 
     let found_user = kek_user
-        .filter(chat_id.eq(&chat_id))
+        .filter(chat_id.eq(&users_chat_id))
         .first::<KekUser>(conn)
         .expect("Error loading posts");
 
     create_user_role(&conn, &found_user.id, role_name)
 }
 
-fn get_user<'a>(conn: &PgConnection, chat_id: &'a i32) -> Option<KekUser> {
+fn get_user<'a>(conn: &PgConnection, users_chat_id: &'a i32) -> Option<KekUser> {
     use self::schema::kek_user::dsl::*;
 
-    match kek_user.filter(chat_id.eq(&chat_id)).first::<KekUser>(conn) {
+    match kek_user.filter(chat_id.eq(&users_chat_id)).first::<KekUser>(conn) {
         Ok(user) => return Some(user),
         _ => return None
     }
