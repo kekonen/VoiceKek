@@ -5,3 +5,5 @@ files
 mp3
 wav
 voices
+node_modules
+*/node_modules
